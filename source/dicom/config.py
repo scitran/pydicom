@@ -34,3 +34,10 @@ enforce_valid_values = True
 """Raise errors if any value is not allowed by DICOM standard, e.g. DS strings
 that are longer than 16 characters; IS strings outside the allowed range.
 """
+
+auto_convert_VR_mismatch = False
+"""Set auto_convert_VR_mismatch to True to attempt other translators when a
+value is not translatable with its value representation.  If no other VR can
+successfully translate the value, then return the raw value as a string.  If
+set to False, a ValueError will be raised when a value cannot be translated
+with its value representation."""

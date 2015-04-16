@@ -23,6 +23,7 @@ else:
 
 from dicom.multival import MultiValue
 import dicom.UID
+import dicom.config
 from dicom.tag import Tag, TupleTag
 from dicom.filereader import read_sequence
 from io import BytesIO
@@ -186,16 +187,34 @@ def convert_value(VR, raw_data_element, encoding=default_encoding):
 
     # Not only two cases. Also need extra info if is a raw sequence
     # Pass the encoding to the converter if it is a specific VR
-    if VR == 'PN':
-        value = converter(byte_string, is_little_endian, encoding=encoding)
-    elif VR in text_VRs:
-        # Text VRs use the 2nd specified encoding
-        value = converter(byte_string, is_little_endian, encoding=encoding[1])
-    elif VR != "SQ":
-        value = converter(byte_string, is_little_endian, num_format)
-    else:
-        value = convert_SQ(byte_string, is_implicit_VR, is_little_endian,
-                           encoding, raw_data_element.value_tell)
+    try:
+        if VR == 'PN':
+            value = converter(byte_string, is_little_endian, encoding=encoding)
+        elif VR in text_VRs:
+            # Text VRs use the 2nd specified encoding
+            value = converter(byte_string, is_little_endian, encoding=encoding[1])
+        elif VR != "SQ":
+            value = converter(byte_string, is_little_endian, num_format)
+        else:
+            value = convert_SQ(byte_string, is_implicit_VR, is_little_endian,
+                            encoding, raw_data_element.value_tell)
+    except ValueError as e:
+        if not dicom.config.auto_convert_VR_mismatch:
+            raise ValueError(e)
+        else:
+            logger.debug('could not convert tag %s with VR %s' % (raw_data_element.tag, VR))
+            for vr, converter in converters.iteritems():
+                if vr == VR:
+                    continue
+                try:
+                    value = convert_value(vr, raw_data_element, encoding)
+                    break
+                except Exception:
+                    pass
+            else:
+                logger.debug('converted tag %s with VR %s' % (raw_data_element.tag, vr))
+                value = raw_data_element.value
+
     return value
 
 # converters map a VR to the function to read the value(s).
